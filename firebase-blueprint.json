@@ -1,0 +1,91 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["online", "offline", "matching"] }
+      },
+      "required": ["username", "email"]
+    },
+    "Vybe": {
+      "title": "Vybe",
+      "description": "Mood definition",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "UserVybeSession": {
+      "title": "User Vybe Session",
+      "description": "A user's active mood selection",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "vybeId": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "expiryTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "expired", "matched"] }
+      },
+      "required": ["userId", "vybeId", "startTime", "expiryTime"]
+    },
+    "Question": {
+      "title": "Question",
+      "description": "A compatibility question",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "category": { "type": "string" },
+        "active": { "type": "boolean" }
+      },
+      "required": ["text", "options"]
+    },
+    "MatchSession": {
+      "title": "Match Session",
+      "description": "A pairing between two users",
+      "type": "object",
+      "properties": {
+        "user1Id": { "type": "string" },
+        "user2Id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "vybeId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "active", "completed", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "questions": { "type": "array", "items": { "type": "string" } },
+        "matchScore": { "type": "number" }
+      },
+      "required": ["user1Id", "user2Id", "vybeId", "status"]
+    },
+    "Answer": {
+      "title": "Answer",
+      "description": "A user's answer to a match question",
+      "type": "object",
+      "properties": {
+        "matchId": { "type": "string" },
+        "userId": { "type": "string" },
+        "questionId": { "type": "string" },
+        "answer": { "type": "string" },
+        "answeredAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["matchId", "userId", "questionId", "answer"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": { "schema": "User", "description": "User profiles" },
+    "/vybes/{vybeId}": { "schema": "Vybe", "description": "Mood definitions" },
+    "/user_vybe_sessions/{sessionId}": { "schema": "UserVybeSession", "description": "Active mood selections" },
+    "/questions/{questionId}": { "schema": "Question", "description": "Question bank" },
+    "/match_sessions/{matchId}": { "schema": "MatchSession", "description": "Pairings" },
+    "/match_sessions/{matchId}/answers/{answerId}": { "schema": "Answer", "description": "User answers" },
+    "/match_sessions/{matchId}/messages/{messageId}": { "schema": "object", "description": "Chat messages" }
+  }
+}

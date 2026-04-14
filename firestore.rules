@@ -1,0 +1,129 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId
+    // Fields:
+    //   - username: string (required)
+    //   - email: string (required, email format)
+    //   - photoURL: string (optional)
+    //   - status: string (online, offline, matching)
+    //   - lastSeen: timestamp
+    //
+    // Collection: vybes
+    // Document ID: vybeId
+    // Fields:
+    //   - name: string (required)
+    //   - icon: string
+    //   - color: string
+    //
+    // Collection: user_vybe_sessions
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required)
+    //   - vybeId: string (required)
+    //   - startTime: timestamp
+    //   - expiryTime: timestamp
+    //   - status: string (active, expired, matched)
+    //
+    // Collection: questions
+    // Document ID: auto-generated
+    // Fields:
+    //   - text: string (required)
+    //   - options: list (required)
+    //   - category: string
+    //   - active: bool
+    //
+    // Collection: match_sessions
+    // Document ID: auto-generated (or sorted_uids)
+    // Fields:
+    //   - user1Id: string (required)
+    //   - user2Id: string (required)
+    //   - vybeId: string (required)
+    //   - status: string (active, completed, failed)
+    //   - createdAt: timestamp
+    //   - questions: list
+    //   - matchScore: number
+    //
+    // Sub-collection: match_sessions/{matchId}/answers
+    // Fields:
+    //   - userId: string (required)
+    //   - questionId: string (required)
+    //   - answer: string (required)
+    //   - answeredAt: timestamp
+    //
+    // Sub-collection: match_sessions/{matchId}/messages
+    // Fields:
+    //   - text: string (required)
+    //   - userId: string (required)
+    //   - createdAt: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isParticipant(matchData) {
+      return isAuthenticated() && (request.auth.uid == matchData.user1Id || request.auth.uid == matchData.user2Id);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+    }
+
+    match /vybes/{vybeId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Admin only
+    }
+
+    match /user_vybe_sessions/{sessionId} {
+      allow read: if isAuthenticated(); // Allow reading active sessions for matching
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /questions/{questionId} {
+      allow read: if isAuthenticated();
+      allow write: if false; // Admin only
+    }
+
+    match /match_sessions/{matchId} {
+      allow read: if isAuthenticated() && request.auth.uid in resource.data.participants;
+      allow create: if isAuthenticated() && request.auth.uid in request.resource.data.participants;
+      allow update: if isAuthenticated() && request.auth.uid in resource.data.participants;
+
+      match /answers/{answerId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/match_sessions/$(matchId)).data.participants;
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      }
+
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/match_sessions/$(matchId)).data.participants;
+        allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      }
+    }
+  }
+}
